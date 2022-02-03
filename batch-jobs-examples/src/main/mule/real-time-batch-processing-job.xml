@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<file:config name="List-file" doc:name="File Config" doc:id="235e6ad7-2a06-4e48-a2da-1b655c8ba8d9" >
+	</file:config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="3710d22d-3d17-4cc0-a316-f101532b9b99" >
+		<http:listener-connection host="localhost" port="8081" />
+	</http:listener-config>
+	<flow name="real-time-batch-processing-jobFlow" doc:id="9a4904e4-e2f2-4702-b963-dc3432d0e6fa" >
+		<http:listener doc:name="Listener" doc:id="366f62d3-50d2-48a3-997d-e95f9efb1d0e" config-ref="HTTP_Listener_config" path="/file-list-check"/>
+		<file:list doc:name="File List" doc:id="62ebcb09-20a9-4805-af1d-3bf9cb7299a8" config-ref="List-file" directoryPath="C:\Users\002VNS744\Desktop\Mulesoft notes\important connectors\batch\error-handling\Scheduler-example\Input-file">
+			<file:matcher filenamePattern="*.csv" directories="EXCLUDE"/>
+		</file:list>
+		<ee:transform doc:name="Transform Message" doc:id="f3e70bfb-96e6-4301-a88c-f7b9cf9def29" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload.typedAttributes.path]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="43563da8-f471-4d23-8bf7-533eb014d25c" message="#[payload]"/>
+		<foreach doc:name="For Each" doc:id="6b04348f-395a-4d9c-9612-281cd2df6ed6" >
+			<file:read doc:name="Read" doc:id="8f3db7a1-fc23-4279-a16f-18395786ecc2" path="#[payload]" />
+			<ee:transform doc:name="Transform Message" doc:id="2128f731-5cee-494d-89fb-5dbd83d8dbc7" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload
+
+]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<logger level="INFO" doc:name="Logger" doc:id="92581a20-e7f8-4eea-bb3a-cd921539d59a" message="#[payload]" />
+		</foreach>
+	</flow>
+</mule>

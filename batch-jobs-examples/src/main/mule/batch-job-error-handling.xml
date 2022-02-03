@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+	<file:config name="File_Config2" doc:name="File Config" doc:id="59e1a1e0-5d96-4c97-b57a-b709fa6bebd0" >
+		<file:connection workingDir="C:\Users\002VNS744\Desktop\Mulesoft notes\important connectors\batch\error-handling\input" />
+	</file:config>
+	<file:config name="File_Config3" doc:name="File Config" doc:id="fc87b1ee-da10-4c5e-b7b1-de2089f167d6" >
+		<file:connection workingDir="C:\Users\002VNS744\Desktop\Mulesoft notes\important connectors\batch\error-handling\Aggregator-output" />
+	</file:config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="cde8e31f-74b8-421a-a71d-a0f5e7fd9cd9" >
+		<vm:connection />
+		<vm:queues >
+			<vm:queue queueName="Error_queue" queueType="PERSISTENT" />
+		</vm:queues>
+	</vm:config>
+	<flow name="batch-job-error-handlingFlow" doc:id="7b0b4d44-41e6-4d86-9e4e-a3dd4f630fdb" >
+		<file:listener doc:name="On New or Updated File" doc:id="c5771726-6d22-41ec-8e30-6288c9d224af" config-ref="File_Config2" moveToDirectory="C:\Users\002VNS744\Desktop\Mulesoft notes\important connectors\batch\error-handling\output" renameTo="#['on-update-file' ++ (now() as String {format: 'yyyy-MM-dd-hh-mm-ss'})++'-'++(random()*1000)++'.csv']">
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+			<file:matcher filenamePattern="*.csv" directories="EXCLUDE" symLinks="EXCLUDE" />
+		</file:listener>
+		<logger level="INFO" doc:name="Logger" doc:id="45c9fa77-db62-4dcd-816d-af4af34b3bbb" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="5e21910d-25f2-493c-8612-f39a4869d7a2" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map (item,index)->
+{
+	Name: item.Name,
+	Age: item.Age,
+	Phone_No: item.Phone_No,
+	Country: item.Country
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="a13af5ec-ff09-4f71-8ac0-cdd65af0ecc8" variableName="fileData"/>
+		<logger level="INFO" doc:name="Logger" doc:id="ca695794-c239-4ca2-b04b-4a5698b99c5a" message="#[payload]"/>
+		<batch:job jobName="batch-job-error-handlingBatch_Job" doc:id="cada8768-8d18-4d3f-b365-2a9afd82138b" blockSize="4">
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="8b260e2a-7da7-4a43-af9e-bce55cd066dc" acceptPolicy="ALL">
+					<try doc:name="Try" doc:id="8b18e06a-3a30-41d2-aa9b-9d5c23db3c54" >
+						<logger level="INFO" doc:name="Logger" doc:id="fac9c7b0-fda0-430e-8cf6-32794df25dc9" message="#[payload]" />
+						<ee:transform doc:name="Transform Message" doc:id="2367a4ee-4387-4dc4-81f2-537d1d6b7a97">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	Name: payload.Name,
+	Age: payload.Age,
+	Phone_No: (payload.Phone_No as Number)/2,
+	Country: payload.Country
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+						<error-handler >
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="f4277239-9620-4235-a3d9-b2c1c7574d09" >
+								<vm:publish doc:name="Publish" doc:id="639a7e1d-31d0-4d72-bd40-c6aa9f8b8941" config-ref="VM_Config" queueName="Error_queue"/>
+							</on-error-continue>
+						</error-handler>
+					</try>
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="ce422ae4-6c4f-42b1-b7c0-ed7af514a196" size="4">
+						<logger level="INFO" doc:name="Logger" doc:id="48787cdc-7d32-466e-b749-76083d648369" message='"Aggregator started"'/>
+						<logger level="INFO" doc:name="Logger" doc:id="09f3340c-a4f0-4c33-9ddb-f910b5744ed7" message="#[payload]"/>
+						<ee:transform doc:name="Transform Message" doc:id="20a05b15-6a25-4c50-8f07-3c42b5319532" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<file:write doc:name="Write" doc:id="e9e6816e-cc93-4918-beb8-ca843e17b9ab" config-ref="File_Config3" path="#['Aggregator-file' ++ (now() as String {format: 'yyyy-MM-dd-hh-mm-ss'})++'-'++(random()*1000)++'.csv']"/>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="ebb1c00d-76d4-4676-9dda-04576ecaa429" message="#[payload]"/>
+			</batch:on-complete>
+		</batch:job>
+		<logger level="INFO" doc:name="Logger" doc:id="cfac5c10-4361-4e23-b90f-c41fd9349eed" message="batch job ended -- Satyam Kumar"/>
+		<logger level="INFO" doc:name="Logger" doc:id="0d462404-3aea-4cd7-a21d-dc3df8537ab6" message="#[vars.fileData]"/>
+	</flow>
+	<flow name="batch-job-error-handlingFlow1" doc:id="e350140c-5ec1-45d7-a6bc-c9ffb271d4e3" >
+		<vm:listener queueName="Error_queue" doc:name="Listener" doc:id="7a51fcc5-6333-49bd-8e46-95c6e075770e" config-ref="VM_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="4e30feee-b986-4242-872e-425957700d8b" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="88b4012d-9a06-4d9d-a752-e621ec05581f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="Write" doc:id="79bf5793-d004-4656-9eb1-471bba489312" config-ref="File_Config3" path="#['Failed-records' ++ (now() as String {format: 'yyyy-MM-dd-hh-mm-ss'})++'-'++(random()*1000)++'.csv']"/>
+	</flow>
+</mule>
