@@ -1,0 +1,56 @@
+#%RAML 1.0
+title: salesforce1-api
+baseUri: http://makemyplan
+description: This is the first API for invoking the Salesforce API
+mediaType:
+  - application/json
+  - application/xml
+version: "1"
+protocols:
+  - HTTP
+/name:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              [
+                {
+                    "Id": "0015j00000XlS06AAF",
+                    "Name": "GenePoint",
+                    "AccountNumber": "CC978213",
+                    "country": "",
+                    "city": "Mountain View"
+                },
+                {
+                    "Id": "0015j00000XlS04AAF",
+                    "Name": "United Oil & Gas, UK",
+                    "AccountNumber": "CD355119-A",
+                    "country": "",
+                    "city": ""
+                },
+                {
+                    "Id": "0015j00000XlS05AAF",
+                    "Name": "United Oil & Gas, Singapore",
+                    "AccountNumber": "CD355120-B",
+                    "country": "",
+                    "city": "Singapore"
+                },
+                {
+                    "Id": "0015j00000XlRzwAAF",
+                    "Name": "Edge Communications",
+                    "AccountNumber": "CD451796",
+                    "country": "",
+                    "city": "Austin" 
+                }
+             ]
+      404:
+        body:
+          application/json:
+            example:
+              {
+                code: 404,
+                Message: "internal server error"
+              }
+        
